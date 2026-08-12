@@ -10,7 +10,7 @@ test("sends filters to the protected same-origin recommendation endpoint", async
     ok: true,
     json: async () => ({ movie }),
   });
-  const filters = { genre: "878", minimumRating: 8 };
+  const filters = { genres: ["878", "12"], minimumRating: 8 };
 
   await expect(findRandomMovie(filters, {
     excludedIds: [10, 11],

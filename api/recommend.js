@@ -103,7 +103,14 @@ function normalizeInput(body) {
     throw new ApiError("The start date must be before the end date.", 400);
   }
 
-  const genre = /^\d+$/.test(source.genre || "") ? source.genre : "";
+  const rawGenres = Array.isArray(source.genres)
+    ? source.genres
+    : typeof source.genre === "string"
+      ? source.genre.split(",")
+      : [];
+  const genre = [...new Set(rawGenres)]
+    .filter((genreId) => typeof genreId === "string" && /^\d+$/.test(genreId))
+    .join(",");
   const language = /^[a-z]{2}$/.test(source.language || "") ? source.language : "";
   const maxRuntime = ["90", "120", "150", "180"].includes(source.maxRuntime)
     ? source.maxRuntime

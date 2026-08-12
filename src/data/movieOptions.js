@@ -1,5 +1,4 @@
 export const GENRES = [
-  { value: "", label: "Any genre" },
   { value: "28", label: "Action" },
   { value: "12", label: "Adventure" },
   { value: "16", label: "Animation" },
@@ -64,7 +63,7 @@ export const DISCOVERY_MODES = [
 ];
 
 export const DEFAULT_FILTERS = {
-  genre: "28",
+  genres: ["28"],
   minimumRating: 7,
   startDate: "",
   endDate: "",

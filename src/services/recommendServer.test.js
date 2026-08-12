@@ -53,7 +53,7 @@ function functionResponse() {
 
 test("prioritizes strong TMDB candidates for high IMDb rating searches", () => {
   const params = buildDiscoverParams({
-    genre: "27",
+    genre: "27,53",
     language: "en",
     maxRuntime: "120",
     mode: "crowd",
@@ -62,12 +62,23 @@ test("prioritizes strong TMDB candidates for high IMDb rating searches", () => {
     endDate: "2025-12-31",
   }, 2, "tmdb-key");
 
-  expect(params.get("with_genres")).toBe("27");
+  expect(params.get("with_genres")).toBe("27,53");
   expect(params.get("vote_average.gte")).toBe("7");
   expect(params.get("sort_by")).toBe("vote_average.desc");
   expect(params.get("page")).toBe("2");
   expect(candidatePageLimit(500, 8)).toBe(6);
   expect(candidatePageLimit(500, 7)).toBe(16);
+});
+
+test("normalizes multiple unique genres for an AND search", () => {
+  const normalized = normalizeInput({
+    filters: {
+      genres: ["9648", "53", "9648", "not-a-genre"],
+      minimumRating: 7,
+    },
+  });
+
+  expect(normalized.filters.genre).toBe("9648,53");
 });
 
 test("keeps a larger recent-pick exclusion list", () => {
@@ -135,7 +146,7 @@ test("skips an excluded recent movie and returns a fresh matching candidate", as
       "x-forwarded-for": "recent-pick-test",
     },
     body: {
-      filters: { genre: "28", minimumRating: 8, mode: "crowd" },
+      filters: { genres: ["28", "53"], minimumRating: 8, mode: "crowd" },
       excludedIds: [seenMovie.id],
     },
   }, response);
@@ -144,6 +155,9 @@ test("skips an excluded recent movie and returns a fresh matching candidate", as
   expect(response.body.movie.id).toBe(freshMovie.id);
   expect(response.body.movie.imdbRating).toBe(8.2);
   expect(response.body.movie.imdb.Director).toBe("Movie Director");
+
+  const discoverCall = fetchMock.mock.calls.find(([url]) => url.includes("/discover/movie"));
+  expect(new URL(discoverCall[0]).searchParams.get("with_genres")).toBe("28,53");
 
   const mdblistCall = fetchMock.mock.calls.find(([url]) => url.includes("api.mdblist.com"));
   expect(mdblistCall).toBeDefined();

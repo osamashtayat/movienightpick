@@ -66,6 +66,24 @@ test("lets the user change and reset the IMDb rating", () => {
   expect(rating).toHaveValue("7");
 });
 
+test("lets the user combine multiple genres", async () => {
+  const fetchMock = jest.spyOn(global, "fetch").mockResolvedValueOnce(movieResponse(firstMovie));
+  render(<App />);
+
+  fireEvent.click(screen.getByRole("button", { name: "Mystery" }));
+  fireEvent.click(screen.getByRole("button", { name: "Thriller" }));
+
+  expect(screen.getByRole("button", { name: "Action" })).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByRole("button", { name: "Mystery" })).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByRole("button", { name: "Thriller" })).toHaveAttribute("aria-pressed", "true");
+
+  fireEvent.click(screen.getByRole("button", { name: /find my movie/i }));
+  await screen.findByRole("heading", { name: firstMovie.title });
+
+  const request = JSON.parse(fetchMock.mock.calls[0][1].body);
+  expect(request.filters.genres).toEqual(["28", "9648", "53"]);
+});
+
 test("reset clears and remounts both native date inputs", () => {
   render(<App />);
 
@@ -92,9 +110,7 @@ test("clears a result as soon as the user changes its filters", async () => {
   fireEvent.click(screen.getByRole("button", { name: /find my movie/i }));
   expect(await screen.findByRole("heading", { name: firstMovie.title })).toBeInTheDocument();
 
-  fireEvent.change(screen.getByRole("combobox", { name: /genre/i }), {
-    target: { value: "35" },
-  });
+  fireEvent.click(screen.getByRole("button", { name: "Comedy" }));
 
   expect(screen.queryByRole("heading", { name: firstMovie.title })).not.toBeInTheDocument();
   expect(screen.getByText(/your next favorite is waiting/i)).toBeInTheDocument();

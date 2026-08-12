@@ -16,7 +16,7 @@ The goal is simple: **help you find tonight's movie quickly.**
 
 ## Features
 
-- Filter by genre, IMDb rating, release dates, runtime, and original language
+- Combine multiple genres and filter by IMDb rating, release dates, runtime, and original language
 - Choose between crowd-pleaser, hidden-gem, and wild-card discovery modes
 - Verify IMDb ratings through MDBList before recommending a movie
 - Watch trailers and open available streaming platforms

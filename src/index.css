@@ -306,6 +306,7 @@ footer {
 .field,
 .rating-field,
 .mode-picker,
+.genre-picker,
 .date-section,
 .language-field {
   display: block;
@@ -315,6 +316,7 @@ footer {
 .field > span,
 .rating-field label,
 .mode-picker legend,
+.genre-picker legend,
 .section-label {
   display: block;
   margin-bottom: 8px;
@@ -322,6 +324,61 @@ footer {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.035em;
+}
+
+.genre-picker {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+}
+
+.genre-picker > p {
+  margin: -3px 0 10px;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.genre-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.genre-chip {
+  min-height: 31px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--muted-bright);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 600;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease,
+    transform 160ms ease;
+}
+
+.genre-chip:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: var(--border-bright);
+  color: var(--text);
+}
+
+.genre-chip.selected {
+  border-color: rgba(255, 91, 69, 0.55);
+  background: rgba(255, 91, 69, 0.12);
+  color: #ff8a78;
+}
+
+.genre-chip:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.genre-chip:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .field select,
@@ -1366,6 +1423,7 @@ footer {
   }
 
   .filter-panel form > .mode-picker,
+  .filter-panel form > .genre-picker,
   .filter-panel form > .date-section,
   .filter-panel form > .toggle-row,
   .filter-panel form > .search-progress,

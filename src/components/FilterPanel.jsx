@@ -26,6 +26,28 @@ export function FilterPanel({
     onChange((current) => ({ ...current, [key]: value }));
   };
 
+  // Read the former single-genre value too, so existing visitors keep their
+  // saved preference until the first time they update the genre picker.
+  const selectedGenres = Array.isArray(filters.genres)
+    ? filters.genres
+    : filters.genre
+      ? [filters.genre]
+      : [];
+
+  const toggleGenre = (genreId) => {
+    const nextGenres = genreId === ""
+      ? []
+      : selectedGenres.includes(genreId)
+        ? selectedGenres.filter((selectedGenre) => selectedGenre !== genreId)
+        : [...selectedGenres, genreId];
+
+    onChange((current) => {
+      const currentFilters = { ...current };
+      delete currentFilters.genre;
+      return { ...currentFilters, genres: nextGenres };
+    });
+  };
+
   const handleReset = () => {
     onChange({ ...DEFAULT_FILTERS });
     // Remount native date controls so mobile Safari clears their displayed value.
@@ -46,37 +68,49 @@ export function FilterPanel({
       </div>
 
       <form onSubmit={onSubmit}>
-        <div className="field-grid two-columns">
-          <label className="field">
-            <span>Genre</span>
-            <select
-              value={filters.genre}
-              onChange={(event) => updateFilter("genre", event.target.value)}
-              disabled={isLoading}
+        <fieldset className="genre-picker" disabled={isLoading}>
+          <legend>Genres</legend>
+          <p>Choose one or more. Every selected genre must match.</p>
+          <div className="genre-options">
+            <button
+              className={`genre-chip ${selectedGenres.length === 0 ? "selected" : ""}`}
+              type="button"
+              aria-pressed={selectedGenres.length === 0}
+              onClick={() => toggleGenre("")}
             >
-              {GENRES.map((genre) => (
-                <option key={genre.value || "any"} value={genre.value}>
+              Any genre
+            </button>
+            {GENRES.map((genre) => {
+              const isSelected = selectedGenres.includes(genre.value);
+              return (
+                <button
+                  className={`genre-chip ${isSelected ? "selected" : ""}`}
+                  type="button"
+                  key={genre.value}
+                  aria-pressed={isSelected}
+                  onClick={() => toggleGenre(genre.value)}
+                >
                   {genre.label}
-                </option>
-              ))}
-            </select>
-          </label>
+                </button>
+              );
+            })}
+          </div>
+        </fieldset>
 
-          <label className="field">
-            <span>Maximum length</span>
-            <select
-              value={filters.maxRuntime}
-              onChange={(event) => updateFilter("maxRuntime", event.target.value)}
-              disabled={isLoading}
-            >
-              {RUNTIMES.map((runtime) => (
-                <option key={runtime.value || "any"} value={runtime.value}>
-                  {runtime.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
+        <label className="field runtime-field">
+          <span>Maximum length</span>
+          <select
+            value={filters.maxRuntime}
+            onChange={(event) => updateFilter("maxRuntime", event.target.value)}
+            disabled={isLoading}
+          >
+            {RUNTIMES.map((runtime) => (
+              <option key={runtime.value || "any"} value={runtime.value}>
+                {runtime.label}
+              </option>
+            ))}
+          </select>
+        </label>
 
         <div className="rating-field">
           <div className="field-label-row">
