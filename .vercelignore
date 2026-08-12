@@ -1,0 +1,5 @@
+givemeamovie1
+build
+coverage
+.env*
+*.log
