@@ -21,7 +21,7 @@ The goal is simple: **help you find tonight's movie quickly.**
 - Verify IMDb ratings through MDBList before recommending a movie
 - Watch trailers and open available streaming platforms
 - Share a movie link that opens the exact recommendation with a rich preview
-- Create a private room, invite friends, vote on a movie lineup, and reveal the winner together
+- Create a private room where every friend searches with their own preferences, then vote on the combined picks
 - Mark movies as seen or privately import watched history from IMDb and Letterboxd
 - Save favorites, review recent picks, and avoid repeated recommendations
 - Share movies and enjoy a responsive interface on desktop or mobile
@@ -58,7 +58,7 @@ SUPABASE_SECRET_KEY=your_private_sb_secret_key
 
 Keep these keys private and do not expose them in frontend code.
 
-For group rooms, run `supabase/movie_rooms.sql` once in your Supabase SQL Editor. The app uses temporary in-memory rooms during local development when Supabase is not configured.
+For group rooms, run `supabase/movie_rooms.sql` in your Supabase SQL Editor. It is safe to run the latest script again when the room schema is updated. The app uses temporary in-memory rooms during local development when Supabase is not configured.
 
 Start the project through Vercel so the movie API also works locally:
 

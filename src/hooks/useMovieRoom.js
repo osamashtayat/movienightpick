@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  beginRoomVote,
   closeMovieRoom,
   createMovieRoom,
   getMovieRoomState,
@@ -10,11 +11,13 @@ import {
   revealRoomWinner,
   roomSessionKey,
   saveRoomSession,
-  setRoomCandidates,
+  submitRoomFailure,
+  submitRoomMovie,
   voteInRoom,
 } from "../services/roomApi";
 
 const NAME_KEY = "movienightpick-room-name";
+const ACTIVE_ROOM_KEY = "movienightpick-active-room";
 const POLL_INTERVAL_MS = 2500;
 
 function roomCodeFromUrl() {
@@ -27,6 +30,10 @@ function updateRoomUrl(code) {
   if (code) url.searchParams.set("room", code);
   else url.searchParams.delete("room");
   window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
+function activeRoomCode() {
+  return normalizeRoomCode(window.localStorage.getItem(ACTIVE_ROOM_KEY));
 }
 
 export function useMovieRoom() {
@@ -42,6 +49,7 @@ export function useMovieRoom() {
   const [defaultName, setDefaultName] = useState(
     () => window.localStorage.getItem(NAME_KEY) || ""
   );
+  const [rememberedRoomCode, setRememberedRoomCode] = useState(activeRoomCode);
   const actionVersionRef = useRef(0);
   const isActionRunningRef = useRef(false);
 
@@ -52,12 +60,13 @@ export function useMovieRoom() {
   }, []);
 
   const enterRoomMode = useCallback(() => {
-    const code = roomCodeFromUrl();
+    const code = roomCodeFromUrl() || activeRoomCode();
+    const savedSession = code ? loadRoomSession(code) : null;
     setInvitedCode(code);
-    setSession(code ? loadRoomSession(code) : null);
+    setSession(savedSession);
     setRoomState(null);
     setError("");
-    setStatus(code && loadRoomSession(code) ? "loading" : "idle");
+    setStatus(savedSession ? "loading" : "idle");
     setMode("room");
     updateRoomUrl(code);
   }, []);
@@ -90,6 +99,8 @@ export function useMovieRoom() {
         name: payload.state.me.name,
       };
       saveRoomSession(nextSession);
+      window.localStorage.setItem(ACTIVE_ROOM_KEY, nextSession.code);
+      setRememberedRoomCode(nextSession.code);
       window.localStorage.setItem(NAME_KEY, nextSession.name);
       setDefaultName(nextSession.name);
       setSession(nextSession);
@@ -116,6 +127,8 @@ export function useMovieRoom() {
         name: payload.state.me.name,
       };
       saveRoomSession(nextSession);
+      window.localStorage.setItem(ACTIVE_ROOM_KEY, nextSession.code);
+      setRememberedRoomCode(nextSession.code);
       window.localStorage.setItem(NAME_KEY, nextSession.name);
       setDefaultName(nextSession.name);
       setSession(nextSession);
@@ -150,10 +163,22 @@ export function useMovieRoom() {
     }
   }, [applyState, session]);
 
-  const publishCandidates = useCallback(
-    (candidates, filters) => runRoomAction(
-      (currentSession) => setRoomCandidates(currentSession, candidates, filters)
+  const submitMovie = useCallback(
+    (movie, filters) => runRoomAction(
+      (currentSession) => submitRoomMovie(currentSession, movie, filters)
     ),
+    [runRoomAction]
+  );
+
+  const submitFailure = useCallback(
+    (message, filters) => runRoomAction(
+      (currentSession) => submitRoomFailure(currentSession, message, filters)
+    ),
+    [runRoomAction]
+  );
+
+  const startVoting = useCallback(
+    () => runRoomAction((currentSession) => beginRoomVote(currentSession)),
     [runRoomAction]
   );
 
@@ -179,6 +204,8 @@ export function useMovieRoom() {
     );
     if (closedState) {
       window.localStorage.removeItem(roomSessionKey(session.code));
+      window.localStorage.removeItem(ACTIVE_ROOM_KEY);
+      setRememberedRoomCode("");
       backToSolo();
     }
   }, [backToSolo, runRoomAction, session]);
@@ -203,6 +230,10 @@ export function useMovieRoom() {
         if (!active || refreshError.name === "AbortError") return;
         if (refreshError.status === 401 || refreshError.status === 404) {
           window.localStorage.removeItem(roomSessionKey(session.code));
+          if (activeRoomCode() === session.code) {
+            window.localStorage.removeItem(ACTIVE_ROOM_KEY);
+            setRememberedRoomCode("");
+          }
           setSession(null);
           setRoomState(null);
           setInvitedCode(session.code);
@@ -230,11 +261,14 @@ export function useMovieRoom() {
     status,
     error,
     defaultName,
+    rememberedRoomCode,
     enterRoomMode,
     backToSolo,
     createRoom,
     joinRoom,
-    publishCandidates,
+    submitMovie,
+    submitFailure,
+    startVoting,
     vote,
     reveal,
     reset,

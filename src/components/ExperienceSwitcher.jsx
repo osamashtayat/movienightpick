@@ -1,4 +1,4 @@
-export function ExperienceSwitcher({ mode, onSolo, onRoom }) {
+export function ExperienceSwitcher({ mode, rememberedRoomCode, onSolo, onRoom }) {
   return (
     <section className="experience-switcher" id="experience-switcher" aria-labelledby="experience-title">
       <div className="experience-heading">
@@ -32,8 +32,12 @@ export function ExperienceSwitcher({ mode, onSolo, onRoom }) {
             <i /><i /><i />
           </span>
           <span className="experience-copy">
-            <strong>Vote with friends</strong>
-            <small>Create a room, share it, choose together</small>
+            <strong>{mode === "solo" && rememberedRoomCode ? "Return to your room" : "Vote with friends"}</strong>
+            <small>
+              {mode === "solo" && rememberedRoomCode
+                ? `Room ${rememberedRoomCode} is still waiting for you`
+                : "Everyone brings a pick, then you vote"}
+            </small>
           </span>
           <span className="experience-check" aria-hidden="true">{mode === "room" ? "✓" : "→"}</span>
         </button>

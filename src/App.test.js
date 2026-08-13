@@ -77,6 +77,48 @@ test("opens a shared room invitation directly from its URL", () => {
   expect(screen.getByLabelText(/your name/i)).toBeInTheDocument();
 });
 
+test("returns to the same active room after temporarily switching to solo mode", async () => {
+  const session = { code: "ABC234", token: "member-token", hostToken: "host-token", name: "Osama" };
+  const roomState = {
+    room: {
+      code: "ABC234",
+      status: "lobby",
+      hostName: "Osama",
+      candidates: [],
+      winnerIds: [],
+    },
+    members: [
+      { id: "host", name: "Osama", isHost: true },
+      { id: "guest", name: "Maya", isHost: false },
+    ],
+    me: { id: "host", name: "Osama", isHost: true },
+    voteCounts: {},
+    totalVotes: 0,
+    myVote: null,
+    submissions: [],
+  };
+  window.localStorage.setItem("movienightpick-active-room", "ABC234");
+  window.localStorage.setItem("movienightpick-room-session:ABC234", JSON.stringify(session));
+  const fetchMock = jest.spyOn(global, "fetch").mockResolvedValue({
+    ok: true,
+    json: async () => ({ state: roomState }),
+  });
+  render(<App />);
+
+  expect(screen.getByRole("button", { name: /return to your room/i })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: /return to your room/i }));
+  expect(await screen.findByRole("heading", { name: /build the ballot together/i })).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: /pick for me/i }));
+  expect(screen.getByText(/movie preferences/i)).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /return to your room/i })).toBeVisible();
+
+  fireEvent.click(screen.getByRole("button", { name: /return to your room/i }));
+  expect(await screen.findByRole("heading", { name: /build the ballot together/i })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /create my room/i })).not.toBeInTheDocument();
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+});
+
 test("lets the user change and reset the IMDb rating", () => {
   render(<App />);
 

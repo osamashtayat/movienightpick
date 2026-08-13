@@ -10,8 +10,10 @@ const memory = globalThis.__movieNightPickRooms || {
   rooms: new Map(),
   members: new Map(),
   votes: new Map(),
+  submissions: new Map(),
 };
 globalThis.__movieNightPickRooms = memory;
+if (!memory.submissions) memory.submissions = new Map();
 
 function clone(value) {
   return value == null ? value : JSON.parse(JSON.stringify(value));
@@ -25,6 +27,11 @@ function roomMembers(code) {
 function roomVotes(code) {
   if (!memory.votes.has(code)) memory.votes.set(code, []);
   return memory.votes.get(code);
+}
+
+function roomSubmissions(code) {
+  if (!memory.submissions.has(code)) memory.submissions.set(code, []);
+  return memory.submissions.get(code);
 }
 
 function memoryStore() {
@@ -49,6 +56,7 @@ function memoryStore() {
       memory.rooms.delete(code);
       memory.members.delete(code);
       memory.votes.delete(code);
+      memory.submissions.delete(code);
     },
     async deleteExpiredRooms(now) {
       [...memory.rooms.values()]
@@ -57,6 +65,7 @@ function memoryStore() {
           memory.rooms.delete(room.code);
           memory.members.delete(room.code);
           memory.votes.delete(room.code);
+          memory.submissions.delete(room.code);
         });
     },
     async insertMember(member) {
@@ -82,6 +91,21 @@ function memoryStore() {
     },
     async deleteVotes(code) {
       memory.votes.set(code, []);
+    },
+    async getSubmissions(code) {
+      return clone(roomSubmissions(code));
+    },
+    async upsertSubmission(submission) {
+      const submissions = roomSubmissions(submission.room_code);
+      const existingIndex = submissions.findIndex(
+        (item) => item.member_id === submission.member_id
+      );
+      if (existingIndex >= 0) submissions[existingIndex] = clone(submission);
+      else submissions.push(clone(submission));
+      return clone(submission);
+    },
+    async deleteSubmissions(code) {
+      memory.submissions.set(code, []);
     },
   };
 }
@@ -194,6 +218,28 @@ function supabaseStore() {
         method: "DELETE",
       });
     },
+    async getSubmissions(code) {
+      return supabaseFetch(
+        `movie_room_submissions?room_code=eq.${encodeURIComponent(code)}&select=*&order=updated_at.asc`
+      );
+    },
+    async upsertSubmission(submission) {
+      const [saved] = await supabaseFetch(
+        "movie_room_submissions?on_conflict=room_code,member_id",
+        {
+          method: "POST",
+          body: submission,
+          prefer: "resolution=merge-duplicates,return=representation",
+        }
+      );
+      return saved;
+    },
+    async deleteSubmissions(code) {
+      await supabaseFetch(
+        `movie_room_submissions?room_code=eq.${encodeURIComponent(code)}`,
+        { method: "DELETE" }
+      );
+    },
   };
 }
 
@@ -215,6 +261,7 @@ function resetMemoryRoomStore() {
   memory.rooms.clear();
   memory.members.clear();
   memory.votes.clear();
+  memory.submissions.clear();
 }
 
 module.exports = {

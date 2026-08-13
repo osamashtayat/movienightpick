@@ -120,7 +120,7 @@ test("creates a room, accepts members and keeps private tokens out of public sta
   expect(refreshed.body.state.me.name).toBe("Maya");
 });
 
-test("runs a complete host and guest vote with an updatable vote and reveal", async () => {
+test("accepts simultaneous member picks, preserves failures and runs the vote", async () => {
   const created = await roomRequest({ action: "create", name: "Host" });
   const host = {
     code: created.body.state.room.code,
@@ -129,21 +129,50 @@ test("runs a complete host and guest vote with an updatable vote and reveal", as
   };
   const joined = await roomRequest({ action: "join", code: host.code, name: "Guest" });
   const guest = { code: host.code, token: joined.body.token };
+  const thirdJoined = await roomRequest({ action: "join", code: host.code, name: "Sam" });
+  const third = { code: host.code, token: thirdJoined.body.token };
 
-  const lineup = await roomRequest({
-    action: "candidates",
-    code: host.code,
-    candidates,
-    filters: { genres: ["9648"], minimumRating: 7.5 },
-  }, host);
+  const [hostPick, guestPick, failedPick] = await Promise.all([
+    roomRequest({
+      action: "submit",
+      status: "success",
+      code: host.code,
+      movie: candidates[0],
+      filters: { genres: ["9648"], minimumRating: 8 },
+    }, host),
+    roomRequest({
+      action: "submit",
+      status: "success",
+      code: host.code,
+      movie: candidates[1],
+      filters: { genres: ["53"], minimumRating: 7.5 },
+    }, guest),
+    roomRequest({
+      action: "submit",
+      status: "failed",
+      code: host.code,
+      error: "No IMDb 9.0+ musical was found.",
+      filters: { genres: ["10402"], minimumRating: 9 },
+    }, third),
+  ]);
+  expect(hostPick.statusCode).toBe(200);
+  expect(guestPick.statusCode).toBe(200);
+  expect(failedPick.statusCode).toBe(200);
+
+  const lineup = await roomRequest({ action: "begin_vote", code: host.code }, host);
   expect(lineup.statusCode).toBe(200);
   expect(lineup.body.state.room.status).toBe("voting");
-  expect(lineup.body.state.room.candidates).toHaveLength(3);
+  expect(lineup.body.state.room.candidates).toHaveLength(2);
+  expect(lineup.body.state.room.candidates.find((movie) => movie.id === 101).suggestedBy)
+    .toEqual(["Host"]);
+  expect(lineup.body.state.submissions).toEqual(expect.arrayContaining([
+    expect.objectContaining({ memberName: "Sam", status: "failed", error: expect.stringMatching(/musical/) }),
+  ]));
 
   await roomRequest({ action: "vote", code: host.code, movieId: 101 }, host);
   const guestVote = await roomRequest({ action: "vote", code: host.code, movieId: 202 }, guest);
   expect(guestVote.body.state.totalVotes).toBe(2);
-  expect(guestVote.body.state.voteCounts).toEqual({ 101: 1, 202: 1, 303: 0 });
+  expect(guestVote.body.state.voteCounts).toEqual({ 101: 1, 202: 1 });
 
   const changedVote = await roomRequest({ action: "vote", code: host.code, movieId: 101 }, guest);
   expect(changedVote.body.state.totalVotes).toBe(2);
@@ -161,6 +190,7 @@ test("runs a complete host and guest vote with an updatable vote and reveal", as
   const reset = await roomRequest({ action: "reset", code: host.code }, host);
   expect(reset.body.state.room.status).toBe("lobby");
   expect(reset.body.state.room.candidates).toEqual([]);
+  expect(reset.body.state.submissions).toEqual([]);
   expect(reset.body.state.totalVotes).toBe(0);
 });
 
@@ -174,7 +204,15 @@ test("rejects invalid invitations and unrecognized voting choices", async () => 
     token: created.body.token,
     hostToken: created.body.hostToken,
   };
-  await roomRequest({ action: "candidates", code: host.code, candidates }, host);
+  const joined = await roomRequest({ action: "join", code: host.code, name: "Guest" });
+  const guest = { code: host.code, token: joined.body.token };
+  await roomRequest({
+    action: "submit", status: "success", code: host.code, movie: candidates[0], filters: {},
+  }, host);
+  await roomRequest({
+    action: "submit", status: "success", code: host.code, movie: candidates[1], filters: {},
+  }, guest);
+  await roomRequest({ action: "begin_vote", code: host.code }, host);
 
   const invalidVote = await roomRequest({
     action: "vote",
@@ -183,4 +221,28 @@ test("rejects invalid invitations and unrecognized voting choices", async () => 
   }, host);
   expect(invalidVote.statusCode).toBe(400);
   expect(invalidVote.body.error).toMatch(/choose one of the movies/i);
+});
+
+test("does not let one failed search cancel successful member picks", async () => {
+  const created = await roomRequest({ action: "create", name: "Host" });
+  const host = {
+    code: created.body.state.room.code,
+    token: created.body.token,
+    hostToken: created.body.hostToken,
+  };
+  const failed = await roomRequest({
+    action: "submit",
+    status: "failed",
+    code: host.code,
+    error: "Nothing matched this narrow search.",
+    filters: { genres: ["37"], minimumRating: 9 },
+  }, host);
+
+  expect(failed.statusCode).toBe(200);
+  expect(failed.body.state.room.status).toBe("lobby");
+  expect(failed.body.state.submissions[0]).toEqual(expect.objectContaining({
+    status: "failed",
+    error: "Nothing matched this narrow search.",
+    movie: null,
+  }));
 });

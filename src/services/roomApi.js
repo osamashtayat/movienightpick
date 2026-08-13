@@ -70,10 +70,26 @@ export async function getMovieRoomState(session, { signal } = {}) {
   return payload.state;
 }
 
-export async function setRoomCandidates(session, candidates, filters) {
+export async function submitRoomMovie(session, movie, filters) {
   const payload = await roomRequest({
     session,
-    body: { action: "candidates", code: session.code, candidates, filters },
+    body: { action: "submit", status: "success", code: session.code, movie, filters },
+  });
+  return payload.state;
+}
+
+export async function submitRoomFailure(session, error, filters) {
+  const payload = await roomRequest({
+    session,
+    body: { action: "submit", status: "failed", code: session.code, error, filters },
+  });
+  return payload.state;
+}
+
+export async function beginRoomVote(session) {
+  const payload = await roomRequest({
+    session,
+    body: { action: "begin_vote", code: session.code },
   });
   return payload.state;
 }

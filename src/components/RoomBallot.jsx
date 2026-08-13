@@ -1,11 +1,12 @@
 import { formatRuntime, posterUrl, releaseYear } from "../utils/movie";
 
 export function RoomBallot({ state, isBusy, error, onVote, onReveal, onReset }) {
-  const { room, me, voteCounts, totalVotes, myVote, members } = state;
+  const { room, me, voteCounts, totalVotes, myVote, members, submissions = [] } = state;
   const isRevealed = room.status === "revealed";
   const winnerIds = new Set(room.winnerIds);
   const maxVotes = Math.max(1, ...Object.values(voteCounts));
   const allVoted = totalVotes >= members.length;
+  const failedSubmissions = submissions.filter((submission) => submission.status === "failed");
 
   return (
     <section className={`room-ballot ${isRevealed ? "revealed" : ""}`} aria-labelledby="ballot-title">
@@ -60,6 +61,9 @@ export function RoomBallot({ state, isBusy, error, onVote, onReveal, onReset }) 
                   {movie.runtime && <span>{formatRuntime(movie.runtime)}</span>}
                 </div>
                 <h3>{movie.title}</h3>
+                {movie.suggestedBy?.length > 0 && (
+                  <p className="suggested-by">Suggested by {movie.suggestedBy.join(" & ")}</p>
+                )}
                 {genres && <p className="ballot-genres">{genres}</p>}
                 <p className="ballot-overview">{movie.overview || "No synopsis is available yet."}</p>
 
@@ -88,6 +92,22 @@ export function RoomBallot({ state, isBusy, error, onVote, onReveal, onReset }) 
             </article>
           );
         })}
+        {failedSubmissions.map((submission) => (
+          <article className="ballot-card failed-ballot-card" key={`failed-${submission.memberId}`}>
+            <div className="failed-ballot-visual">
+              <span aria-hidden="true">!</span>
+              <small>{submission.memberName}</small>
+            </div>
+            <div className="ballot-card-copy">
+              <span className="submission-kicker">The search hit a snag</span>
+              <h3>No movie found</h3>
+              <p className="ballot-overview">{submission.error || "No movie matched this person’s preferences."}</p>
+              <div className="failed-ballot-note">
+                This card stays visible, but it doesn’t block the vote.
+              </div>
+            </div>
+          </article>
+        ))}
       </div>
 
       {error && <div className="room-error ballot-error" role="alert">{error}</div>}

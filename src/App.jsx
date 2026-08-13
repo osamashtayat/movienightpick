@@ -15,7 +15,7 @@ import { DEFAULT_FILTERS } from "./data/movieOptions";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import { useMovieDiscovery } from "./hooks/useMovieDiscovery";
 import { useMovieRoom } from "./hooks/useMovieRoom";
-import { findRoomCandidates } from "./services/movieApi";
+import { findRandomMovie } from "./services/movieApi";
 import { uniqueById } from "./utils/movie";
 import {
   buildMovieExclusions,
@@ -101,16 +101,23 @@ function App() {
     const exclusions = filters.avoidSeen
       ? [...watchedMovies, ...history.map(watchedMovieFromResult)]
       : [];
+    exclusions.push(
+      ...(movieRoom.roomState?.submissions || [])
+        .filter((submission) => submission.status === "success" && submission.movie)
+        .map((submission) => watchedMovieFromResult(submission.movie))
+    );
 
     try {
-      const candidates = await findRoomCandidates(filters, {
+      const roomMovie = await findRandomMovie(filters, {
         signal: controller.signal,
         exclusions: buildMovieExclusions(exclusions),
       });
-      await movieRoom.publishCandidates(candidates, filters);
+      await movieRoom.submitMovie(roomMovie, filters);
     } catch (roomError) {
       if (roomError.name !== "AbortError") {
-        setRoomSearchError(roomError.message || "The voting lineup could not be created.");
+        const message = roomError.message || "No movie matched those preferences.";
+        const savedFailure = await movieRoom.submitFailure(message, filters);
+        if (!savedFailure) setRoomSearchError(message);
       }
     } finally {
       if (roomSearchControllerRef.current === controller) {
@@ -244,6 +251,7 @@ function App() {
       <main>
         <ExperienceSwitcher
           mode={movieRoom.mode}
+          rememberedRoomCode={movieRoom.rememberedRoomCode}
           onSolo={movieRoom.backToSolo}
           onRoom={() => {
             cancel();
@@ -339,36 +347,34 @@ function App() {
             />
 
             {movieRoom.roomState.room.status === "lobby" ? (
-              movieRoom.roomState.me.isHost ? (
-                <div className="discovery-layout room-lobby-layout">
-                  <FilterPanel
-                    filters={filters}
-                    onChange={setFilters}
-                    onSubmit={handleRoomSubmit}
-                    onCancel={cancelRoomSearch}
-                    status={roomSearchStatus}
-                    watchedCount={watchedMovies.length}
-                    onManageWatched={() => setIsSeenDialogOpen(true)}
-                    eyebrow="Build the ballot"
-                    title="Group preferences"
-                    submitLabel="Create voting lineup"
-                    progressLabel="Finding strong IMDb matches"
-                    progressTitle="Building your ballot"
-                  />
-                  <RoomLobby
-                    state={movieRoom.roomState}
-                    isSearching={roomSearchStatus === "loading"}
-                    error={roomSearchError || movieRoom.error}
-                    onShare={shareRoomLink}
-                  />
-                </div>
-              ) : (
+              <div className="discovery-layout room-lobby-layout">
+                <FilterPanel
+                  filters={filters}
+                  onChange={setFilters}
+                  onSubmit={handleRoomSubmit}
+                  onCancel={cancelRoomSearch}
+                  status={roomSearchStatus}
+                  watchedCount={watchedMovies.length}
+                  onManageWatched={() => setIsSeenDialogOpen(true)}
+                  eyebrow="Your contribution"
+                  title="Your preferences"
+                  submitLabel={
+                    movieRoom.roomState.submissions.some((submission) => submission.isMe)
+                      ? "Replace my room pick"
+                      : "Find my room pick"
+                  }
+                  progressLabel="Verifying your IMDb match"
+                  progressTitle="Finding your contribution"
+                />
                 <RoomLobby
                   state={movieRoom.roomState}
-                  isSearching={false}
-                  error={movieRoom.error}
+                  isSearching={roomSearchStatus === "loading"}
+                  error={roomSearchError || movieRoom.error}
+                  onShare={shareRoomLink}
+                  onStartVote={movieRoom.startVoting}
+                  isBusy={movieRoom.status === "working"}
                 />
-              )
+              </div>
             ) : (
               <RoomBallot
                 state={movieRoom.roomState}

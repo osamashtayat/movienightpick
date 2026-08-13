@@ -37,7 +37,7 @@ export function RoomStartPanel({
         </div>
         <span className="eyebrow">Movie-night rooms</span>
         <h2 id="room-start-title">Everyone gets a vote.<br /><em>No endless group chat.</em></h2>
-        <p>Invite your friends, vote on a short lineup, and reveal tonight’s winner together.</p>
+        <p>Everyone searches with their own taste, then all the successful picks become one shared ballot.</p>
       </div>
 
       <ol className="room-steps" aria-label="How group voting works">
@@ -76,7 +76,7 @@ export function RoomStartPanel({
           <form className="room-entry-card create-room-card" onSubmit={submitCreate}>
             <span className="room-entry-icon" aria-hidden="true">+</span>
             <h3>Start a new room</h3>
-            <p>You choose the filters, then everyone votes.</p>
+            <p>Everyone brings one movie, then the room votes.</p>
             <label className="room-field">
               <span>Your name</span>
               <input

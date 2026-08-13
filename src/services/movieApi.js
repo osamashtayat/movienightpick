@@ -37,41 +37,6 @@ export async function findRandomMovie(
   return payload.movie;
 }
 
-export async function findRoomCandidates(
-  filters,
-  { signal, exclusions = {} } = {}
-) {
-  const response = await fetch("/api/recommend", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      filters,
-      count: 3,
-      excludedIds: exclusions.tmdbIds || [],
-      excludedImdbIds: exclusions.imdbIds || [],
-      excludedMovieKeys: exclusions.movieKeys || [],
-    }),
-    signal,
-  });
-
-  let payload;
-  try {
-    payload = await response.json();
-  } catch {
-    payload = {};
-  }
-
-  if (!response.ok) {
-    throw new Error(payload.error || "The movie service is unavailable right now.");
-  }
-
-  if (!Array.isArray(payload.movies) || payload.movies.length < 2) {
-    throw new Error("Not enough matching movies were found for a vote. Try wider filters.");
-  }
-
-  return payload.movies;
-}
-
 export async function findMovieById(movieId, { signal } = {}) {
   const response = await fetch(`/api/movie?id=${encodeURIComponent(movieId)}`, { signal });
 

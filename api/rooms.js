@@ -105,6 +105,35 @@ function cleanCandidate(movie) {
       }))
       : [],
     trailerKey: String(movie.trailerKey || "").slice(0, 80),
+    suggestedBy: Array.isArray(movie.suggestedBy)
+      ? movie.suggestedBy.map((name) => String(name).slice(0, 24)).slice(0, MAX_ROOM_MEMBERS)
+      : [],
+  };
+}
+
+function cleanFilters(value) {
+  const source = value && typeof value === "object" ? value : {};
+  const genres = Array.isArray(source.genres)
+    ? [...new Set(source.genres.filter((genre) => /^\d+$/.test(String(genre))))].slice(0, 8)
+    : [];
+  const minimumRating = Number(source.minimumRating);
+
+  return {
+    genres,
+    minimumRating: Number.isFinite(minimumRating)
+      ? Math.min(10, Math.max(0, minimumRating))
+      : 0,
+    startDate: /^\d{4}-\d{2}-\d{2}$/.test(source.startDate || "")
+      ? source.startDate
+      : "",
+    endDate: /^\d{4}-\d{2}-\d{2}$/.test(source.endDate || "")
+      ? source.endDate
+      : "",
+    maxRuntime: ["", "90", "120", "150", "180"].includes(source.maxRuntime)
+      ? source.maxRuntime
+      : "",
+    language: /^[a-z]{2}$/.test(source.language || "") ? source.language : "",
+    mode: ["crowd", "hidden", "wild"].includes(source.mode) ? source.mode : "crowd",
   };
 }
 
@@ -117,8 +146,11 @@ async function authenticatedState(store, code, token) {
   const members = await store.getMembers(code);
   const member = members.find((item) => item.token_hash === tokenHash(token));
   if (!member) throw new RoomApiError("Your room invitation is invalid.", 401);
-  const votes = await store.getVotes(code);
-  return { room, members, member, votes };
+  const [votes, submissions] = await Promise.all([
+    store.getVotes(code),
+    store.getSubmissions(code),
+  ]);
+  return { room, members, member, votes, submissions };
 }
 
 function requireHost(room, member, suppliedHostToken) {
@@ -130,7 +162,7 @@ function requireHost(room, member, suppliedHostToken) {
   }
 }
 
-function publicState({ room, members, member, votes }) {
+function publicState({ room, members, member, votes = [], submissions = [] }) {
   const voteCounts = Object.fromEntries((room.candidates || []).map((movie) => [movie.id, 0]));
   votes.forEach((vote) => {
     if (Object.prototype.hasOwnProperty.call(voteCounts, vote.movie_id)) {
@@ -160,6 +192,19 @@ function publicState({ room, members, member, votes }) {
     voteCounts,
     totalVotes: votes.length,
     myVote: votes.find((vote) => vote.member_id === member.id)?.movie_id || null,
+    submissions: submissions.map((submission) => {
+      const submittingMember = members.find((item) => item.id === submission.member_id);
+      return {
+        memberId: submission.member_id,
+        memberName: submittingMember?.name || "Former member",
+        isMe: submission.member_id === member.id,
+        status: submission.status,
+        movie: submission.movie || null,
+        error: submission.error_message || "",
+        filters: submission.filters || {},
+        updatedAt: submission.updated_at,
+      };
+    }),
   };
 }
 
@@ -210,7 +255,7 @@ async function createRoom(store, body) {
   return {
     token,
     hostToken: hostSecret,
-    state: publicState({ room, members: [member], member, votes: [] }),
+    state: publicState({ room, members: [member], member, votes: [], submissions: [] }),
   };
 }
 
@@ -235,32 +280,69 @@ async function joinRoom(store, body) {
     joined_at: new Date().toISOString(),
   });
   const members = await store.getMembers(code);
-  const votes = await store.getVotes(code);
+  const [votes, submissions] = await Promise.all([
+    store.getVotes(code),
+    store.getSubmissions(code),
+  ]);
   return {
     token,
     hostToken: "",
-    state: publicState({ room, members, member, votes }),
+    state: publicState({ room, members, member, votes, submissions }),
   };
 }
 
-async function setCandidates(store, body, token, suppliedHostToken) {
+async function saveSubmission(store, body, token) {
+  const code = cleanCode(body.code);
+  const state = await authenticatedState(store, code, token);
+  if (state.room.status !== "lobby") {
+    throw new RoomApiError("This room has already moved to voting.");
+  }
+
+  const failed = body.status === "failed";
+  const submission = {
+    room_code: code,
+    member_id: state.member.id,
+    status: failed ? "failed" : "success",
+    movie: failed ? null : cleanCandidate(body.movie),
+    error_message: failed
+      ? String(body.error || "No movie matched those preferences.").slice(0, 260)
+      : "",
+    filters: cleanFilters(body.filters),
+    updated_at: new Date().toISOString(),
+  };
+  await store.upsertSubmission(submission);
+  const submissions = await store.getSubmissions(code);
+  return publicState({ ...state, submissions });
+}
+
+async function beginVote(store, body, token, suppliedHostToken) {
   const code = cleanCode(body.code);
   const state = await authenticatedState(store, code, token);
   requireHost(state.room, state.member, suppliedHostToken);
-  const candidates = Array.isArray(body.candidates)
-    ? body.candidates.map(cleanCandidate)
-    : [];
-  if (candidates.length < 2 || candidates.length > 3) {
-    throw new RoomApiError("A voting lineup needs two or three movies.");
+  if (state.room.status !== "lobby") {
+    throw new RoomApiError("This room has already moved to voting.");
   }
-  if (new Set(candidates.map((movie) => movie.id)).size !== candidates.length) {
-    throw new RoomApiError("Every voting choice must be a different movie.");
+
+  const membersById = new Map(state.members.map((item) => [item.id, item]));
+  const uniqueCandidates = new Map();
+  state.submissions
+    .filter((submission) => submission.status === "success" && submission.movie)
+    .forEach((submission) => {
+      const candidate = cleanCandidate(submission.movie);
+      const name = membersById.get(submission.member_id)?.name || "A friend";
+      const existing = uniqueCandidates.get(candidate.id);
+      if (existing) existing.suggestedBy.push(name);
+      else uniqueCandidates.set(candidate.id, { ...candidate, suggestedBy: [name] });
+    });
+  const candidates = [...uniqueCandidates.values()];
+  if (candidates.length < 2) {
+    throw new RoomApiError("At least two different movie picks are needed before voting.");
   }
 
   await store.deleteVotes(code);
   const room = await store.updateRoom(code, {
     status: "voting",
-    filters: body.filters || {},
+    filters: {},
     candidates,
     winner_ids: [],
   });
@@ -312,12 +394,13 @@ async function resetVote(store, body, token, suppliedHostToken) {
   const state = await authenticatedState(store, code, token);
   requireHost(state.room, state.member, suppliedHostToken);
   await store.deleteVotes(code);
+  await store.deleteSubmissions(code);
   const room = await store.updateRoom(code, {
     status: "lobby",
     candidates: [],
     winner_ids: [],
   });
-  return publicState({ ...state, room, votes: [] });
+  return publicState({ ...state, room, votes: [], submissions: [] });
 }
 
 async function closeRoom(store, body, token, suppliedHostToken) {
@@ -352,8 +435,10 @@ module.exports = async function handler(request, response) {
     let result;
     if (body.action === "create") result = await createRoom(store, body);
     else if (body.action === "join") result = await joinRoom(store, body);
-    else if (body.action === "candidates") {
-      result = { state: await setCandidates(store, body, token, hostToken(request)) };
+    else if (body.action === "submit") {
+      result = { state: await saveSubmission(store, body, token) };
+    } else if (body.action === "begin_vote") {
+      result = { state: await beginVote(store, body, token, hostToken(request)) };
     } else if (body.action === "vote") {
       result = { state: await saveVote(store, body, token) };
     } else if (body.action === "reveal") {
@@ -377,6 +462,7 @@ module.exports = async function handler(request, response) {
 module.exports.__test = {
   cleanCandidate,
   cleanCode,
+  cleanFilters,
   cleanName,
   tokenHash,
 };

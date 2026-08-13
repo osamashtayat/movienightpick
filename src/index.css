@@ -2573,6 +2573,259 @@ footer {
   margin-top: 14px;
 }
 
+/* One independent pick per room member */
+.room-pick-board {
+  align-items: stretch;
+  justify-content: flex-start;
+  padding: 32px;
+  overflow: visible;
+  text-align: left;
+}
+
+.room-board-heading {
+  display: flex;
+  margin-bottom: 22px;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.room-board-heading h2 {
+  font-size: clamp(28px, 3vw, 43px);
+}
+
+.room-board-heading p {
+  max-width: 610px;
+  margin: 11px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.room-ready-count {
+  min-width: 102px;
+  padding: 11px 14px;
+  border: 1px solid rgba(101, 214, 166, 0.22);
+  border-radius: 12px;
+  background: rgba(101, 214, 166, 0.055);
+  text-align: center;
+}
+
+.room-ready-count strong,
+.room-ready-count span {
+  display: block;
+}
+
+.room-ready-count strong {
+  color: var(--green);
+  font-size: 20px;
+}
+
+.room-ready-count span {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.submission-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 11px;
+}
+
+.submission-card {
+  position: relative;
+  min-width: 0;
+  min-height: 190px;
+  padding: 16px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.submission-person {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+  align-items: center;
+}
+
+.submission-person > span {
+  display: grid;
+  width: 27px;
+  height: 27px;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(154, 124, 255, 0.2);
+  color: #c3b5ff;
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.submission-person b {
+  overflow: hidden;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.submission-card h3 {
+  margin: 6px 0 8px;
+  font-family: "Manrope", sans-serif;
+  font-size: 18px;
+  letter-spacing: -0.035em;
+  line-height: 1.12;
+}
+
+.submission-card > p,
+.submission-movie p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.55;
+}
+
+.submission-kicker {
+  color: var(--accent);
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.waiting-symbol,
+.failed-symbol {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 13px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.failed-submission {
+  border-color: rgba(255, 91, 69, 0.26);
+  background: rgba(255, 91, 69, 0.045);
+}
+
+.failed-symbol {
+  margin-bottom: 12px;
+  background: rgba(255, 91, 69, 0.12);
+  color: var(--accent);
+}
+
+.failed-submission > small {
+  display: block;
+  margin-top: 10px;
+  color: #7f838e;
+  font-size: 8px;
+}
+
+.retry-hint {
+  display: block;
+  margin-top: 11px;
+  color: var(--green);
+  font-size: 8px;
+  font-weight: 600;
+}
+
+.successful-submission {
+  border-color: rgba(101, 214, 166, 0.21);
+  background: rgba(101, 214, 166, 0.035);
+}
+
+.submission-movie {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr);
+  gap: 13px;
+}
+
+.submission-movie img,
+.submission-no-poster {
+  width: 74px;
+  aspect-ratio: 2 / 3;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.submission-no-poster {
+  display: grid;
+  padding: 7px;
+  place-items: center;
+  color: var(--muted);
+  font-size: 8px;
+  text-align: center;
+}
+
+.submission-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 8px;
+  color: var(--muted-bright);
+  font-size: 8px;
+}
+
+.submission-meta b {
+  color: var(--gold);
+}
+
+.submission-spinner {
+  width: 42px;
+  height: 42px;
+  margin-bottom: 13px;
+  border: 2px solid rgba(255, 91, 69, 0.16);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: reel-spin 1s linear infinite;
+}
+
+.room-board-controls {
+  display: flex;
+  min-height: 72px;
+  margin-top: 14px;
+  padding: 13px 15px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.room-board-controls > div {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.room-board-controls p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.host-wait-note {
+  text-align: right;
+}
+
+.start-vote-hint {
+  margin: 9px 0 0;
+  color: var(--muted);
+  font-size: 8px;
+  text-align: right;
+}
+
+.room-copy-link {
+  margin-top: 8px;
+  align-self: flex-end;
+}
+
 /* Ballot and reveal */
 .room-ballot {
   padding: clamp(30px, 4vw, 54px);
@@ -2750,6 +3003,13 @@ footer {
   white-space: nowrap;
 }
 
+.suggested-by {
+  margin: -2px 0 7px;
+  color: var(--green);
+  font-size: 8px;
+  font-weight: 600;
+}
+
 .ballot-overview {
   display: -webkit-box;
   margin: 0 0 17px;
@@ -2839,6 +3099,52 @@ footer {
   margin: 0;
   color: var(--muted);
   font-size: 10px;
+}
+
+.failed-ballot-card {
+  border-color: rgba(255, 91, 69, 0.25);
+  background: rgba(255, 91, 69, 0.035);
+}
+
+.failed-ballot-visual {
+  display: flex;
+  min-height: 185px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+  background:
+    radial-gradient(circle at center, rgba(255, 91, 69, 0.1), transparent 55%),
+    #0c0e12;
+}
+
+.failed-ballot-visual > span {
+  display: grid;
+  width: 55px;
+  height: 55px;
+  place-items: center;
+  border: 1px solid rgba(255, 91, 69, 0.35);
+  border-radius: 50%;
+  background: rgba(255, 91, 69, 0.1);
+  color: var(--accent);
+  font-size: 23px;
+  font-weight: 800;
+}
+
+.failed-ballot-visual small {
+  color: var(--muted-bright);
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.failed-ballot-note {
+  margin-top: auto;
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(255, 91, 69, 0.07);
+  color: #b9827b;
+  font-size: 8px;
+  line-height: 1.45;
 }
 
 @media (max-width: 1180px) {
@@ -3262,6 +3568,59 @@ footer {
 
   .room-lobby h2 {
     font-size: 35px;
+  }
+
+  .room-pick-board {
+    padding: 23px 16px;
+    text-align: left;
+  }
+
+  .room-board-heading {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 13px;
+  }
+
+  .room-board-heading h2 {
+    font-size: 32px;
+  }
+
+  .room-ready-count {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    text-align: left;
+  }
+
+  .room-ready-count span {
+    margin: 0;
+  }
+
+  .submission-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .submission-card {
+    min-height: 176px;
+  }
+
+  .room-board-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .room-board-controls .primary-button {
+    width: 100%;
+  }
+
+  .host-wait-note,
+  .start-vote-hint {
+    text-align: left;
+  }
+
+  .room-copy-link {
+    align-self: flex-start;
   }
 
   .lobby-status {
