@@ -2775,6 +2775,39 @@ footer {
   color: var(--gold);
 }
 
+.submission-details {
+  display: flex;
+  margin-bottom: 8px;
+  padding: 7px 9px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.submission-details strong {
+  color: var(--text);
+  font-size: 9px;
+}
+
+.submission-movie .submission-story {
+  display: -webkit-box;
+  margin-bottom: 9px;
+  overflow: hidden;
+  color: var(--muted-bright);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+
+.submission-movie .submission-preferences {
+  color: var(--muted);
+  font-size: 8px;
+}
+
 .submission-spinner {
   width: 42px;
   height: 42px;

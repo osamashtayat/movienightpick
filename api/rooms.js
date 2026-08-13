@@ -84,6 +84,7 @@ function isExpired(room) {
 function cleanCandidate(movie) {
   const id = Number(movie?.id);
   const imdbRating = Number(movie?.imdbRating);
+  const imdbVotes = Number(String(movie?.imdbVotes ?? movie?.imdb?.imdbVotes ?? "").replaceAll(",", ""));
   if (!Number.isInteger(id) || id <= 0 || !movie?.title || !Number.isFinite(imdbRating)) {
     throw new RoomApiError("The voting lineup contains an invalid movie.");
   }
@@ -93,6 +94,7 @@ function cleanCandidate(movie) {
     title: String(movie.title).slice(0, 160),
     release_date: String(movie.release_date || "").slice(0, 10),
     imdbRating,
+    imdbVotes: Number.isFinite(imdbVotes) && imdbVotes >= 0 ? Math.trunc(imdbVotes) : null,
     runtime: Number(movie.runtime) || null,
     posterUrl: String(movie.posterUrl || "").slice(0, 300),
     poster_path: String(movie.poster_path || "").slice(0, 180),

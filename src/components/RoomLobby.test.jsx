@@ -17,7 +17,14 @@ const state = {
       memberName: "Host",
       isMe: true,
       status: "success",
-      movie: { id: 1, title: "Mystery Pick", imdbRating: 8.1, release_date: "2020-01-01" },
+      movie: {
+        id: 1,
+        title: "Mystery Pick",
+        imdbRating: 8.1,
+        imdbVotes: 123456,
+        release_date: "2020-01-01",
+        overview: "A detective follows a trail that refuses to make sense.",
+      },
       filters: { genres: ["9648"], minimumRating: 8 },
     },
     {
@@ -52,6 +59,9 @@ test("shows every member's independent result and allows voting despite one fail
   );
 
   expect(screen.getByText("Mystery Pick")).toBeInTheDocument();
+  expect(screen.getByText("A detective follows a trail that refuses to make sense.")).toBeInTheDocument();
+  expect(screen.getByText("123,456")).toBeInTheDocument();
+  expect(screen.getAllByText("IMDb voters")).toHaveLength(2);
   expect(screen.getByText("Comedy Pick")).toBeInTheDocument();
   expect(screen.getByText(/we couldn’t find sam’s movie/i)).toBeInTheDocument();
   expect(screen.getByText(/choosing preferences/i)).toBeInTheDocument();

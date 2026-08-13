@@ -67,6 +67,7 @@ const candidates = [
     title: "First Choice",
     release_date: "2020-01-01",
     imdbRating: 8.2,
+    imdbVotes: "123,456",
     runtime: 114,
     posterUrl: "https://image.example/first.jpg",
     overview: "The first group choice.",
@@ -163,6 +164,8 @@ test("accepts simultaneous member picks, preserves failures and runs the vote", 
   expect(lineup.statusCode).toBe(200);
   expect(lineup.body.state.room.status).toBe("voting");
   expect(lineup.body.state.room.candidates).toHaveLength(2);
+  expect(lineup.body.state.room.candidates.find((movie) => movie.id === 101).imdbVotes)
+    .toBe(123456);
   expect(lineup.body.state.room.candidates.find((movie) => movie.id === 101).suggestedBy)
     .toEqual(["Host"]);
   expect(lineup.body.state.submissions).toEqual(expect.arrayContaining([

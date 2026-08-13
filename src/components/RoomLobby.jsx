@@ -1,5 +1,5 @@
 import { GENRES } from "../data/movieOptions";
-import { formatRuntime, posterUrl, releaseYear } from "../utils/movie";
+import { formatNumber, formatRuntime, posterUrl, releaseYear } from "../utils/movie";
 
 const genreNames = new Map(GENRES.map((genre) => [genre.value, genre.label]));
 
@@ -64,7 +64,12 @@ function SubmissionCard({ member, submission, isSearching }) {
             <span>{releaseYear(movie.release_date)}</span>
             {movie.runtime && <span>{formatRuntime(movie.runtime)}</span>}
           </div>
-          <p>{preferenceSummary(submission.filters)}</p>
+          <div className="submission-details">
+            <span>IMDb voters</span>
+            <strong>{movie.imdbVotes != null ? formatNumber(movie.imdbVotes) : "Not available"}</strong>
+          </div>
+          <p className="submission-story">{movie.overview || "No story summary is available yet."}</p>
+          <p className="submission-preferences">{preferenceSummary(submission.filters)}</p>
         </div>
       </div>
       {submission.isMe && <strong className="retry-hint">Not feeling it? Search again to replace it</strong>}
