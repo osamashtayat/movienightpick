@@ -16,6 +16,11 @@ export function FilterPanel({
   status,
   watchedCount,
   onManageWatched,
+  eyebrow = "Tune your night",
+  title = "Movie preferences",
+  submitLabel = "Find my movie",
+  progressLabel = "Verifying IMDb rating",
+  progressTitle = "Finding a strong match",
 }) {
   const isLoading = status === "loading";
   const [dateInputVersion, setDateInputVersion] = useState(0);
@@ -61,8 +66,8 @@ export function FilterPanel({
     <aside className="filter-panel" aria-labelledby="preferences-title">
       <div className="panel-heading">
         <div>
-          <span className="eyebrow">Tune your night</span>
-          <h2 id="preferences-title">Movie preferences</h2>
+          <span className="eyebrow">{eyebrow}</span>
+          <h2 id="preferences-title">{title}</h2>
         </div>
         <button className="text-button" type="button" onClick={handleReset} disabled={isLoading}>
           Reset
@@ -230,8 +235,8 @@ export function FilterPanel({
         {isLoading && (
           <div className="search-progress" aria-live="polite">
             <div className="progress-copy">
-              <span>Verifying IMDb rating</span>
-              <b>Finding a strong match</b>
+              <span>{progressLabel}</span>
+              <b>{progressTitle}</b>
             </div>
             <div className="progress-track">
               <span className="indeterminate-progress" />
@@ -242,7 +247,7 @@ export function FilterPanel({
 
         <button className="primary-button" type="submit" disabled={isLoading}>
           <span aria-hidden="true">▶</span>
-          Find my movie
+          {submitLabel}
         </button>
 
         {isLoading && (

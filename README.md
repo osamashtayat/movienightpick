@@ -21,6 +21,7 @@ The goal is simple: **help you find tonight's movie quickly.**
 - Verify IMDb ratings through MDBList before recommending a movie
 - Watch trailers and open available streaming platforms
 - Share a movie link that opens the exact recommendation with a rich preview
+- Create a private room, invite friends, vote on a movie lineup, and reveal the winner together
 - Mark movies as seen or privately import watched history from IMDb and Letterboxd
 - Save favorites, review recent picks, and avoid repeated recommendations
 - Share movies and enjoy a responsive interface on desktop or mobile
@@ -38,6 +39,7 @@ You will need:
 - Node.js and npm
 - A TMDB API key
 - An MDBList API key
+- A Supabase project if you want group rooms to work across devices
 
 Install the project:
 
@@ -50,9 +52,13 @@ Create a `.env.local` file in the project folder:
 ```env
 TMDB_API_KEY=your_tmdb_key
 MDBLIST_API_KEY=your_mdblist_key
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SECRET_KEY=your_private_sb_secret_key
 ```
 
 Keep these keys private and do not expose them in frontend code.
+
+For group rooms, run `supabase/movie_rooms.sql` once in your Supabase SQL Editor. The app uses temporary in-memory rooms during local development when Supabase is not configured.
 
 Start the project through Vercel so the movie API also works locally:
 
@@ -76,7 +82,7 @@ npm run build
 
 ## Deployment
 
-Add `TMDB_API_KEY` and `MDBLIST_API_KEY` to the Vercel project's environment variables, then deploy with:
+Add `TMDB_API_KEY`, `MDBLIST_API_KEY`, `SUPABASE_URL`, and `SUPABASE_SECRET_KEY` to the Vercel project's environment variables, then deploy with:
 
 ```bash
 npx vercel --prod

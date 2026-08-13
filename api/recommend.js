@@ -428,7 +428,7 @@ function imageUrl(path, size) {
   return path ? `https://image.tmdb.org/t/p/${size}${path}` : "";
 }
 
-async function recommendMovie(filters, exclusions, tmdbKey, mdblistKey) {
+async function recommendMovies(filters, exclusions, tmdbKey, mdblistKey, requestedCount = 1) {
   const firstPage = await fetchJson(
     `${TMDB_BASE_URL}/discover/movie?${buildDiscoverParams(filters, 1, tmdbKey)}`,
     "TMDB"
@@ -446,6 +446,7 @@ async function recommendMovie(filters, exclusions, tmdbKey, mdblistKey) {
   const visitedPages = new Set();
   const pageCache = new Map([[1, firstPage]]);
   const candidatePages = candidatePageLimit(totalPages, filters.minimumRating);
+  const matches = [];
   let attempts = 0;
 
   while (attempts < MAX_SEARCH_ATTEMPTS) {
@@ -488,13 +489,19 @@ async function recommendMovie(filters, exclusions, tmdbKey, mdblistKey) {
       if (!imdbRating || imdbRating.rating < filters.minimumRating) continue;
 
       const movie = await enrichMovie(candidate, tmdbKey, mdblistMovie, imdbRating);
-      return {
+      matches.push({
         ...movie,
         posterUrl: imageUrl(movie.poster_path, "w500"),
         backdropUrl: imageUrl(movie.backdrop_path, "w1280"),
-      };
+      });
+
+      if (matches.length >= requestedCount) return matches;
     }
   }
+
+  // A group ballot can still work with two strong choices when a narrow set
+  // of filters does not yield all three requested movies.
+  if (requestedCount > 1 && matches.length >= 2) return matches;
 
   const exclusionCount = excluded.size + excludedImdbIds.size + excludedMovieKeys.size;
   const repeatHint = filters.avoidWatched && exclusionCount
@@ -504,6 +511,11 @@ async function recommendMovie(filters, exclusions, tmdbKey, mdblistKey) {
     `No IMDb ${filters.minimumRating}+ movie was found. Try a lower rating or wider date range.${repeatHint}`,
     404
   );
+}
+
+async function recommendMovie(filters, exclusions, tmdbKey, mdblistKey) {
+  const [movie] = await recommendMovies(filters, exclusions, tmdbKey, mdblistKey, 1);
+  return movie;
 }
 
 async function getMovieById(movieId, tmdbKey, mdblistKey) {
@@ -545,9 +557,17 @@ module.exports = async function handler(request, response) {
 
     enforceSameOrigin(request);
     enforceRateLimit(request, response);
-    const normalized = normalizeInput(parseBody(request));
-    const movie = await recommendMovie(normalized.filters, normalized, tmdbKey, mdblistKey);
-    return response.status(200).json({ movie });
+    const body = parseBody(request);
+    const normalized = normalizeInput(body);
+    const requestedCount = body.count === 3 ? 3 : 1;
+    const movies = await recommendMovies(
+      normalized.filters,
+      normalized,
+      tmdbKey,
+      mdblistKey,
+      requestedCount
+    );
+    return response.status(200).json({ movie: movies[0], movies });
   } catch (error) {
     const status = error instanceof ApiError ? error.status : 500;
     const message = error instanceof ApiError
@@ -568,4 +588,5 @@ module.exports.__test = {
 module.exports.shared = {
   ApiError,
   getMovieById,
+  recommendMovies,
 };

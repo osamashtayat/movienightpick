@@ -52,6 +52,29 @@ test("renders the movie discovery experience", () => {
   expect(screen.getByText(/your next favorite is waiting/i)).toBeInTheDocument();
   expect(screen.getByLabelText(/minimum imdb rating/i)).toHaveValue("7");
   expect(screen.getByRole("button", { name: /find my movie/i })).toBeEnabled();
+  expect(screen.getByRole("button", { name: /vote with friends/i })).toBeVisible();
+});
+
+test("makes group voting prominent and returns to solo picking in one step", () => {
+  render(<App />);
+
+  fireEvent.click(screen.getByRole("button", { name: /vote with friends/i }));
+  expect(screen.getByRole("heading", { name: /everyone gets a vote/i })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /create my room/i })).toBeEnabled();
+  expect(screen.queryByText(/movie preferences/i)).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: /back to picking for one/i }));
+  expect(screen.getByText(/movie preferences/i)).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /find my movie/i })).toBeEnabled();
+});
+
+test("opens a shared room invitation directly from its URL", () => {
+  window.history.replaceState({}, "", "/?room=ABC234");
+  render(<App />);
+
+  expect(screen.getByText("ABC234")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /join abc234/i })).toBeEnabled();
+  expect(screen.getByLabelText(/your name/i)).toBeInTheDocument();
 });
 
 test("lets the user change and reset the IMDb rating", () => {

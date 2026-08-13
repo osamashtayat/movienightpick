@@ -18,6 +18,9 @@
     },
     "api/share.js": {
       "maxDuration": 30
+    },
+    "api/rooms.js": {
+      "maxDuration": 30
     }
   }
 }
