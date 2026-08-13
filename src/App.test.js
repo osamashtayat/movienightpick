@@ -186,6 +186,51 @@ test("sends the current movie as an exclusion when spinning again", async () => 
   expect(secondRequest.excludedIds).toContain(firstMovie.id);
 });
 
+test("marks a recommendation as seen and lets the user undo it", async () => {
+  jest.spyOn(global, "fetch").mockResolvedValueOnce(movieResponse(firstMovie));
+  render(<App />);
+
+  fireEvent.click(screen.getByRole("button", { name: /find my movie/i }));
+  await screen.findByRole("heading", { name: firstMovie.title });
+
+  fireEvent.click(screen.getByRole("button", { name: /^seen it$/i }));
+  expect(screen.getByRole("button", { name: /^seen$/i })).toHaveAttribute("aria-pressed", "true");
+  await waitFor(() => expect(
+    JSON.parse(window.localStorage.getItem("movienightpick-seen-v1"))
+  ).toEqual([expect.objectContaining({ tmdbId: firstMovie.id, title: firstMovie.title })]));
+
+  fireEvent.click(screen.getByRole("button", { name: /^seen$/i }));
+  expect(screen.getByRole("button", { name: /^seen it$/i })).toHaveAttribute("aria-pressed", "false");
+});
+
+test("imports IMDb history and excludes it from recommendation requests", async () => {
+  const fetchMock = jest.spyOn(global, "fetch").mockResolvedValueOnce(movieResponse(firstMovie));
+  render(<App />);
+
+  fireEvent.click(screen.getByRole("button", { name: /set up your seen movies/i }));
+  expect(screen.getByRole("dialog", { name: /seen movies/i })).toBeInTheDocument();
+
+  const csv = "Const,Title,Year\ntt0133093,The Matrix,1999\ntt0088763,Back to the Future,1985";
+  const file = new File([csv], "ratings.csv", { type: "text/csv" });
+  Object.defineProperty(file, "text", { value: async () => csv });
+  fireEvent.change(screen.getByLabelText(/choose imdb csv/i), {
+    target: { files: [file] },
+  });
+
+  expect(await screen.findByText("The Matrix")).toBeInTheDocument();
+  expect(screen.getByText("Back to the Future")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: /close seen movies/i }));
+  fireEvent.click(screen.getByRole("button", { name: /find my movie/i }));
+  await screen.findByRole("heading", { name: firstMovie.title });
+
+  const request = JSON.parse(fetchMock.mock.calls[0][1].body);
+  expect(request.excludedImdbIds).toEqual(expect.arrayContaining(["tt0133093", "tt0088763"]));
+  expect(request.excludedMovieKeys).toEqual(expect.arrayContaining([
+    "the-matrix:1999",
+    "back-to-the-future:1985",
+  ]));
+});
+
 test("scrolls to the start of the result after picking another movie", async () => {
   const scrollIntoView = jest.fn();
   window.HTMLElement.prototype.scrollIntoView = scrollIntoView;

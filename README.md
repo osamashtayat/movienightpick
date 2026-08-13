@@ -21,6 +21,7 @@ The goal is simple: **help you find tonight's movie quickly.**
 - Verify IMDb ratings through MDBList before recommending a movie
 - Watch trailers and open available streaming platforms
 - Share a movie link that opens the exact recommendation with a rich preview
+- Mark movies as seen or privately import watched history from IMDb and Letterboxd
 - Save favorites, review recent picks, and avoid repeated recommendations
 - Share movies and enjoy a responsive interface on desktop or mobile
 

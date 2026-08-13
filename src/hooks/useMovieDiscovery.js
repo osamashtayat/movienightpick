@@ -7,7 +7,7 @@ export function useMovieDiscovery() {
   const [error, setError] = useState("");
   const controllerRef = useRef(null);
 
-  const discover = useCallback(async (filters, excludedIds = []) => {
+  const discover = useCallback(async (filters, exclusions = {}) => {
     controllerRef.current?.abort();
     const controller = new AbortController();
     controllerRef.current = controller;
@@ -19,7 +19,7 @@ export function useMovieDiscovery() {
     try {
       const result = await findRandomMovie(filters, {
         signal: controller.signal,
-        excludedIds,
+        exclusions,
       });
 
       setMovie(result);

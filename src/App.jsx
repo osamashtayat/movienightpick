@@ -5,10 +5,19 @@ import { FilterPanel } from "./components/FilterPanel";
 import { LoadingStage } from "./components/LoadingStage";
 import { MovieCard } from "./components/MovieCard";
 import { MovieShelf } from "./components/MovieShelf";
+import { SeenMoviesDialog } from "./components/SeenMoviesDialog";
 import { DEFAULT_FILTERS } from "./data/movieOptions";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import { useMovieDiscovery } from "./hooks/useMovieDiscovery";
 import { uniqueById } from "./utils/movie";
+import {
+  buildMovieExclusions,
+  importWatchedFile,
+  isMovieWatched,
+  mergeWatchedMovies,
+  removeWatchedMovie,
+  watchedMovieFromResult,
+} from "./utils/watchedMovies";
 import "./index.css";
 
 const HISTORY_LIMIT = 12;
@@ -17,7 +26,9 @@ function App() {
   const [filters, setFilters] = useLocalStorage("reel-roulette-filters", DEFAULT_FILTERS);
   const [favorites, setFavorites] = useLocalStorage("reel-roulette-favorites", []);
   const [history, setHistory] = useLocalStorage("reel-roulette-history", []);
+  const [watchedMovies, setWatchedMovies] = useLocalStorage("movienightpick-seen-v1", []);
   const [toast, setToast] = useState("");
+  const [isSeenDialogOpen, setIsSeenDialogOpen] = useState(false);
   const resultStageRef = useRef(null);
   const {
     movie,
@@ -34,16 +45,22 @@ function App() {
     [favorites]
   );
 
+  const isCurrentMovieWatched = useMemo(
+    () => Boolean(movie && isMovieWatched(movie, watchedMovies)),
+    [movie, watchedMovies]
+  );
+
   const runDiscovery = async () => {
     if (new URLSearchParams(window.location.search).has("movie")) {
       window.history.replaceState({}, "", window.location.pathname);
     }
 
-    const excludedIds = filters.avoidSeen
-      ? Array.from(new Set([movie?.id, ...history.map((item) => item.id)]))
-        .filter(Number.isInteger)
-      : [];
-    const result = await discover(filters, excludedIds);
+    const exclusions = [movie].filter(Boolean).map(watchedMovieFromResult);
+    if (filters.avoidSeen) {
+      exclusions.push(...watchedMovies, ...history.map(watchedMovieFromResult));
+    }
+
+    const result = await discover(filters, buildMovieExclusions(exclusions));
 
     if (result) {
       setHistory((current) => uniqueById([result, ...current]).slice(0, HISTORY_LIMIT));
@@ -71,6 +88,35 @@ function App() {
         ? current.filter((favorite) => favorite.id !== selectedMovie.id)
         : uniqueById([selectedMovie, ...current]);
     });
+  };
+
+  const toggleWatched = (selectedMovie) => {
+    setWatchedMovies((current) => {
+      const alreadyWatched = isMovieWatched(selectedMovie, current);
+      setToast(alreadyWatched ? "Removed from seen movies" : "Added to seen movies");
+      return alreadyWatched
+        ? removeWatchedMovie(current, selectedMovie)
+        : mergeWatchedMovies(current, [watchedMovieFromResult(selectedMovie)]);
+    });
+  };
+
+  const importWatchedMovies = async ({ file, source, mode }) => {
+    try {
+      const importedMovies = await importWatchedFile(file, source);
+      if (!importedMovies.length) {
+        throw new Error(`No movies were found in that ${source === "imdb" ? "IMDb" : "Letterboxd"} export.`);
+      }
+
+      setWatchedMovies((current) => {
+        const next = mergeWatchedMovies(mode === "replace" ? [] : current, importedMovies);
+        setToast(
+          `${importedMovies.length.toLocaleString()} movies imported · ${next.length.toLocaleString()} remembered`
+        );
+        return next;
+      });
+    } catch (importError) {
+      setToast(importError.message || "That movie history could not be imported.");
+    }
   };
 
   const shareMovie = async (selectedMovie) => {
@@ -123,7 +169,11 @@ function App() {
       <div className="ambient-glow glow-one" />
       <div className="ambient-glow glow-two" />
 
-      <AppHeader favoriteCount={favorites.length} historyCount={history.length} />
+      <AppHeader
+        favoriteCount={favorites.length}
+        historyCount={history.length}
+        watchedCount={watchedMovies.length}
+      />
 
       <main>
         <section className="hero-intro">
@@ -139,6 +189,8 @@ function App() {
             onSubmit={handleSubmit}
             onCancel={cancel}
             status={status}
+            watchedCount={watchedMovies.length}
+            onManageWatched={() => setIsSeenDialogOpen(true)}
           />
 
           <div className="result-stage" ref={resultStageRef}>
@@ -147,7 +199,9 @@ function App() {
               <MovieCard
                 movie={movie}
                 isFavorite={favoriteIds.has(movie.id)}
+                isWatched={isCurrentMovieWatched}
                 onFavorite={toggleFavorite}
+                onWatched={toggleWatched}
                 onShare={shareMovie}
                 onReroll={runDiscovery}
               />
@@ -185,6 +239,21 @@ function App() {
       </footer>
 
       {toast && <div className="toast" role="status">{toast}</div>}
+
+      <SeenMoviesDialog
+        isOpen={isSeenDialogOpen}
+        watchedMovies={watchedMovies}
+        onClose={() => setIsSeenDialogOpen(false)}
+        onImport={importWatchedMovies}
+        onRemove={(selectedMovie) => {
+          setWatchedMovies((current) => removeWatchedMovie(current, selectedMovie));
+          setToast("Removed from seen movies");
+        }}
+        onClear={() => {
+          setWatchedMovies([]);
+          setToast("Seen movie history cleared");
+        }}
+      />
     </div>
   );
 }

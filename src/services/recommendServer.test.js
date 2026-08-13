@@ -92,6 +92,17 @@ test("keeps a larger recent-pick exclusion list", () => {
   expect(normalized.excludedIds).toEqual(excludedIds);
 });
 
+test("normalizes imported IMDb and title-year exclusions", () => {
+  const normalized = normalizeInput({
+    filters: { minimumRating: 7 },
+    excludedImdbIds: ["TT0133093", "bad-id", "tt0133093"],
+    excludedMovieKeys: ["the-matrix:1999", "bad movie key", "arrival:2016"],
+  });
+
+  expect(normalized.excludedImdbIds).toEqual(["tt0133093"]);
+  expect(normalized.excludedMovieKeys).toEqual(["the-matrix:1999", "arrival:2016"]);
+});
+
 test("reads the exact IMDb rating and vote count from MDBList", () => {
   expect(getImdbRating({
     ratings: [
@@ -205,4 +216,66 @@ test("skips an excluded recent movie and returns a fresh matching candidate", as
   expect(mdblistCall).toBeDefined();
   expect(JSON.parse(mdblistCall[1].body).ids).toEqual([freshMovie.id]);
   expect(fetchMock.mock.calls.some(([url]) => url.includes("/external_ids"))).toBe(false);
+});
+
+test("filters an imported title before spending an MDBList check on it", async () => {
+  const watchedMovie = {
+    id: 603,
+    title: "The Matrix",
+    release_date: "1999-03-30",
+    vote_average: 8.7,
+  };
+  const freshMovie = {
+    id: 27205,
+    title: "Inception",
+    release_date: "2010-07-15",
+    vote_average: 8.4,
+  };
+  const fetchMock = jest.spyOn(global, "fetch").mockImplementation(async (url) => {
+    if (url.includes("/discover/movie")) {
+      return jsonResponse({
+        total_pages: 1,
+        total_results: 2,
+        results: [watchedMovie, freshMovie],
+      });
+    }
+    if (url.includes("api.mdblist.com")) {
+      return jsonResponse([{
+        title: freshMovie.title,
+        year: 2010,
+        ids: { tmdb: freshMovie.id, imdb: "tt1375666" },
+        ratings: [{ source: "imdb", value: 8.8, votes: 2600000 }],
+      }]);
+    }
+    if (url.includes(`/movie/${freshMovie.id}?`)) {
+      return jsonResponse({
+        ...freshMovie,
+        genres: [],
+        videos: { results: [] },
+        "watch/providers": { results: {} },
+        credits: { crew: [], cast: [] },
+        release_dates: { results: [] },
+      });
+    }
+    throw new Error(`Unexpected URL: ${url}`);
+  });
+  const response = functionResponse();
+
+  await recommendHandler({
+    method: "POST",
+    headers: {
+      origin: "https://movienightpick.vercel.app",
+      host: "movienightpick.vercel.app",
+      "x-forwarded-for": "imported-title-test",
+    },
+    body: {
+      filters: { minimumRating: 8, mode: "crowd" },
+      excludedMovieKeys: ["the-matrix:1999"],
+    },
+  }, response);
+
+  expect(response.statusCode).toBe(200);
+  expect(response.body.movie.id).toBe(freshMovie.id);
+  const mdblistCall = fetchMock.mock.calls.find(([url]) => url.includes("api.mdblist.com"));
+  expect(JSON.parse(mdblistCall[1].body).ids).toEqual([freshMovie.id]);
 });

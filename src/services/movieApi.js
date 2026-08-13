@@ -1,11 +1,21 @@
 export async function findRandomMovie(
   filters,
-  { signal, excludedIds = [] } = {}
+  { signal, exclusions = {}, excludedIds } = {}
 ) {
+  const normalizedExclusions = {
+    tmdbIds: exclusions.tmdbIds || excludedIds || [],
+    imdbIds: exclusions.imdbIds || [],
+    movieKeys: exclusions.movieKeys || [],
+  };
   const response = await fetch("/api/recommend", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ filters, excludedIds }),
+    body: JSON.stringify({
+      filters,
+      excludedIds: normalizedExclusions.tmdbIds,
+      excludedImdbIds: normalizedExclusions.imdbIds,
+      excludedMovieKeys: normalizedExclusions.movieKeys,
+    }),
     signal,
   });
 

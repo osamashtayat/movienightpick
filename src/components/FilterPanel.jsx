@@ -14,6 +14,8 @@ export function FilterPanel({
   onReset,
   onCancel,
   status,
+  watchedCount,
+  onManageWatched,
 }) {
   const isLoading = status === "loading";
   const [dateInputVersion, setDateInputVersion] = useState(0);
@@ -211,10 +213,19 @@ export function FilterPanel({
           />
           <span className="toggle" aria-hidden="true" />
           <span>
-            <strong>Avoid recent picks</strong>
-            <small>Keep every suggestion fresh</small>
+            <strong>Avoid watched movies</strong>
+            <small>Skip your seen list and recent picks</small>
           </span>
         </label>
+
+        <button className="seen-summary" type="button" onClick={onManageWatched} disabled={isLoading}>
+          <span className="seen-summary-icon" aria-hidden="true">✓</span>
+          <span>
+            <strong>{watchedCount ? `${watchedCount.toLocaleString()} seen movies` : "Set up your seen movies"}</strong>
+            <small>{watchedCount ? "Manage or import another history" : "Import from IMDb or Letterboxd"}</small>
+          </span>
+          <b>Manage</b>
+        </button>
 
         {isLoading && (
           <div className="search-progress" aria-live="polite">

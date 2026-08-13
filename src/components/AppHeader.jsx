@@ -1,4 +1,4 @@
-export function AppHeader({ favoriteCount, historyCount }) {
+export function AppHeader({ favoriteCount, historyCount, watchedCount }) {
   return (
     <header className="app-header">
       <a className="brand" href="#top" aria-label="MovieNightPick home">
@@ -12,6 +12,8 @@ export function AppHeader({ favoriteCount, historyCount }) {
       </a>
 
       <div className="header-stats" aria-label="Your movie collection summary">
+        <span><b>{watchedCount}</b> seen</span>
+        <span className="header-divider" />
         <span><b>{favoriteCount}</b> favorites</span>
         <span className="header-divider" />
         <span><b>{historyCount}</b> recent picks</span>

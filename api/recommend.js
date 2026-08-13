@@ -5,6 +5,7 @@ const REQUEST_TIMEOUT_MS = 8_000;
 const SEARCH_WINDOW_MS = 10 * 60 * 1_000;
 const SEARCHES_PER_WINDOW = 30;
 const MDBLIST_CACHE_TTL_MS = 6 * 60 * 60 * 1_000;
+const MAX_EXCLUDED_MOVIES = 12_000;
 
 const requestBuckets = new Map();
 const mdblistCache = new Map();
@@ -87,6 +88,29 @@ function validDate(value) {
   return !value || /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
+function normalizeMovieTitle(value) {
+  return String(value || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, "-");
+}
+
+function movieYear(value) {
+  return String(value || "").match(/(?:18|19|20|21)\d{2}/)?.[0] || "";
+}
+
+function movieTitleYearKey(title, year) {
+  const normalizedTitle = normalizeMovieTitle(title);
+  const normalizedYear = movieYear(year);
+  return normalizedTitle && normalizedYear
+    ? `${normalizedTitle}:${normalizedYear}`
+    : "";
+}
+
 function normalizeInput(body) {
   const source = body.filters || {};
   const minimumRating = Number(source.minimumRating);
@@ -119,7 +143,19 @@ function normalizeInput(body) {
     ? source.mode
     : "crowd";
   const excludedIds = Array.isArray(body.excludedIds)
-    ? body.excludedIds.filter(Number.isInteger).slice(0, 50)
+    ? [...new Set(body.excludedIds.filter((movieId) => (
+      Number.isInteger(movieId) && movieId > 0
+    )))].slice(0, MAX_EXCLUDED_MOVIES)
+    : [];
+  const excludedImdbIds = Array.isArray(body.excludedImdbIds)
+    ? [...new Set(body.excludedImdbIds.map((movieId) => String(movieId).toLowerCase()).filter(
+      (movieId) => /^tt\d{5,12}$/.test(movieId)
+    ))].slice(0, MAX_EXCLUDED_MOVIES)
+    : [];
+  const excludedMovieKeys = Array.isArray(body.excludedMovieKeys)
+    ? [...new Set(body.excludedMovieKeys.map((movieKey) => String(movieKey).toLowerCase()).filter(
+      (movieKey) => /^[a-z0-9-]{1,140}:(?:18|19|20|21)\d{2}$/.test(movieKey)
+    ))].slice(0, MAX_EXCLUDED_MOVIES)
     : [];
 
   return {
@@ -131,8 +167,11 @@ function normalizeInput(body) {
       minimumRating,
       startDate: source.startDate || "",
       endDate: source.endDate || "",
+      avoidWatched: source.avoidSeen !== false,
     },
     excludedIds,
+    excludedImdbIds,
+    excludedMovieKeys,
   };
 }
 
@@ -389,7 +428,7 @@ function imageUrl(path, size) {
   return path ? `https://image.tmdb.org/t/p/${size}${path}` : "";
 }
 
-async function recommendMovie(filters, excludedIds, tmdbKey, mdblistKey) {
+async function recommendMovie(filters, exclusions, tmdbKey, mdblistKey) {
   const firstPage = await fetchJson(
     `${TMDB_BASE_URL}/discover/movie?${buildDiscoverParams(filters, 1, tmdbKey)}`,
     "TMDB"
@@ -400,7 +439,9 @@ async function recommendMovie(filters, excludedIds, tmdbKey, mdblistKey) {
     throw new ApiError("No movies match those filters. Try widening your search.", 404);
   }
 
-  const excluded = new Set(excludedIds);
+  const excluded = new Set(exclusions.excludedIds);
+  const excludedImdbIds = new Set(exclusions.excludedImdbIds);
+  const excludedMovieKeys = new Set(exclusions.excludedMovieKeys);
   const visitedMovies = new Set();
   const visitedPages = new Set();
   const pageCache = new Map([[1, firstPage]]);
@@ -421,7 +462,9 @@ async function recommendMovie(filters, excludedIds, tmdbKey, mdblistKey) {
       pageData.results || [],
       filters.minimumRating
     ).filter((candidate) => (
-      !visitedMovies.has(candidate.id) && !excluded.has(candidate.id)
+      !visitedMovies.has(candidate.id)
+      && !excluded.has(candidate.id)
+      && !excludedMovieKeys.has(movieTitleYearKey(candidate.title, candidate.release_date))
     )).slice(0, MAX_SEARCH_ATTEMPTS - attempts);
 
     candidates.forEach((candidate) => visitedMovies.add(candidate.id));
@@ -432,6 +475,15 @@ async function recommendMovie(filters, excludedIds, tmdbKey, mdblistKey) {
     for (let index = 0; index < candidates.length; index += 1) {
       const candidate = candidates[index];
       const mdblistMovie = mdblistMovies.get(candidate.id);
+      const imdbId = String(mdblistMovie?.ids?.imdb || "").toLowerCase();
+      const mdblistMovieKey = movieTitleYearKey(
+        mdblistMovie?.title || candidate.title,
+        mdblistMovie?.year || candidate.release_date
+      );
+      if (
+        (imdbId && excludedImdbIds.has(imdbId))
+        || (mdblistMovieKey && excludedMovieKeys.has(mdblistMovieKey))
+      ) continue;
       const imdbRating = getImdbRating(mdblistMovie);
       if (!imdbRating || imdbRating.rating < filters.minimumRating) continue;
 
@@ -444,7 +496,10 @@ async function recommendMovie(filters, excludedIds, tmdbKey, mdblistKey) {
     }
   }
 
-  const repeatHint = excluded.size ? " You can also turn off ‘Avoid recent picks’." : "";
+  const exclusionCount = excluded.size + excludedImdbIds.size + excludedMovieKeys.size;
+  const repeatHint = filters.avoidWatched && exclusionCount
+    ? " You can also turn off ‘Avoid watched movies’."
+    : "";
   throw new ApiError(
     `No IMDb ${filters.minimumRating}+ movie was found. Try a lower rating or wider date range.${repeatHint}`,
     404
@@ -490,8 +545,8 @@ module.exports = async function handler(request, response) {
 
     enforceSameOrigin(request);
     enforceRateLimit(request, response);
-    const { filters, excludedIds } = normalizeInput(parseBody(request));
-    const movie = await recommendMovie(filters, excludedIds, tmdbKey, mdblistKey);
+    const normalized = normalizeInput(parseBody(request));
+    const movie = await recommendMovie(normalized.filters, normalized, tmdbKey, mdblistKey);
     return response.status(200).json({ movie });
   } catch (error) {
     const status = error instanceof ApiError ? error.status : 500;
@@ -506,6 +561,7 @@ module.exports.__test = {
   buildDiscoverParams,
   candidatePageLimit,
   getImdbRating,
+  movieTitleYearKey,
   normalizeInput,
 };
 

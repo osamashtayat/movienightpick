@@ -45,7 +45,15 @@ function providerLink(providerName, fallback) {
     || "#";
 }
 
-export function MovieCard({ movie, isFavorite, onFavorite, onShare, onReroll }) {
+export function MovieCard({
+  movie,
+  isFavorite,
+  isWatched,
+  onFavorite,
+  onWatched,
+  onShare,
+  onReroll,
+}) {
   const imdb = movie.imdb || {};
   const genres = movie.genres?.map((genre) => genre.name).join(" · ") || imdb.Genre;
   const runtime = formatRuntime(movie.runtime, imdb.Runtime);
@@ -168,6 +176,15 @@ export function MovieCard({ movie, isFavorite, onFavorite, onShare, onReroll }) 
             <button className="secondary-button" type="button" onClick={() => onShare(movie)}>
               <span aria-hidden="true">↗</span>
               Share
+            </button>
+            <button
+              className={`secondary-button seen-action ${isWatched ? "active" : ""}`}
+              type="button"
+              onClick={() => onWatched(movie)}
+              aria-pressed={isWatched}
+            >
+              <span aria-hidden="true">{isWatched ? "✓" : "○"}</span>
+              {isWatched ? "Seen" : "Seen it"}
             </button>
             <button className="secondary-button" type="button" onClick={onReroll}>
               <span aria-hidden="true">↻</span>

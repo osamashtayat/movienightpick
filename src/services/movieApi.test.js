@@ -30,6 +30,11 @@ test("sends filters to the protected same-origin recommendation endpoint", async
   expect(fetchMock).toHaveBeenCalledWith("/api/recommend", expect.objectContaining({
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ filters, excludedIds: [10, 11] }),
   }));
+  expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+    filters,
+    excludedIds: [10, 11],
+    excludedImdbIds: [],
+    excludedMovieKeys: [],
+  });
 });
