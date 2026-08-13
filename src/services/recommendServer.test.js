@@ -6,6 +6,7 @@ const {
   getImdbRating,
   normalizeInput,
 } = recommendHandler.__test;
+const { getMovieById } = recommendHandler.shared;
 
 const originalTmdbKey = process.env.TMDB_API_KEY;
 const originalMdblistKey = process.env.MDBLIST_API_KEY;
@@ -99,6 +100,47 @@ test("reads the exact IMDb rating and vote count from MDBList", () => {
     ],
   })).toEqual({ rating: 8.2, votes: 345678 });
   expect(getImdbRating({ ratings: [] })).toBeNull();
+});
+
+test("loads an exact shared movie with its verified IMDb details", async () => {
+  const movieId = 303303;
+  jest.spyOn(global, "fetch").mockImplementation(async (url) => {
+    if (url.includes("api.mdblist.com")) {
+      return jsonResponse([{
+        title: "Shared Pick",
+        description: "A carefully selected shared movie.",
+        ids: { tmdb: movieId, imdb: "tt0303303" },
+        ratings: [{ source: "imdb", value: 8.4, votes: 123456 }],
+        genres: [{ title: "Mystery" }],
+      }]);
+    }
+    if (url.includes(`/movie/${movieId}?`)) {
+      return jsonResponse({
+        id: movieId,
+        title: "Shared Pick",
+        release_date: "2022-10-14",
+        overview: "A carefully selected shared movie.",
+        poster_path: "/shared-poster.jpg",
+        backdrop_path: "/shared-backdrop.jpg",
+        genres: [{ id: 9648, name: "Mystery" }],
+        videos: { results: [] },
+        "watch/providers": { results: {} },
+        credits: { crew: [], cast: [] },
+        release_dates: { results: [] },
+      });
+    }
+    throw new Error(`Unexpected URL: ${url}`);
+  });
+
+  await expect(getMovieById(movieId, "tmdb-key", "mdblist-key")).resolves.toEqual(
+    expect.objectContaining({
+      id: movieId,
+      title: "Shared Pick",
+      imdbRating: 8.4,
+      posterUrl: "https://image.tmdb.org/t/p/w500/shared-poster.jpg",
+      backdropUrl: "https://image.tmdb.org/t/p/w1280/shared-backdrop.jpg",
+    })
+  );
 });
 
 test("skips an excluded recent movie and returns a fresh matching candidate", async () => {

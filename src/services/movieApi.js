@@ -26,3 +26,24 @@ export async function findRandomMovie(
 
   return payload.movie;
 }
+
+export async function findMovieById(movieId, { signal } = {}) {
+  const response = await fetch(`/api/movie?id=${encodeURIComponent(movieId)}`, { signal });
+
+  let payload;
+  try {
+    payload = await response.json();
+  } catch {
+    payload = {};
+  }
+
+  if (!response.ok) {
+    throw new Error(payload.error || "This shared movie is unavailable right now.");
+  }
+
+  if (!payload.movie) {
+    throw new Error("The shared movie could not be loaded.");
+  }
+
+  return payload.movie;
+}

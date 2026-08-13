@@ -1,7 +1,18 @@
-import { findRandomMovie } from "./movieApi";
+import { findMovieById, findRandomMovie } from "./movieApi";
 
 afterEach(() => {
   jest.restoreAllMocks();
+});
+
+test("loads an exact movie from the public shared-movie endpoint", async () => {
+  const movie = { id: 278, title: "The Shawshank Redemption", imdbRating: 9.3 };
+  const fetchMock = jest.spyOn(global, "fetch").mockResolvedValue({
+    ok: true,
+    json: async () => ({ movie }),
+  });
+
+  await expect(findMovieById(278)).resolves.toEqual(movie);
+  expect(fetchMock).toHaveBeenCalledWith("/api/movie?id=278", { signal: undefined });
 });
 
 test("sends filters to the protected same-origin recommendation endpoint", async () => {

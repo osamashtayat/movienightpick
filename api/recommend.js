@@ -451,6 +451,27 @@ async function recommendMovie(filters, excludedIds, tmdbKey, mdblistKey) {
   );
 }
 
+async function getMovieById(movieId, tmdbKey, mdblistKey) {
+  if (!Number.isInteger(movieId) || movieId <= 0) {
+    throw new ApiError("The shared movie link is invalid.", 400);
+  }
+
+  const mdblistMovies = await getMdblistMovies([{ id: movieId }], mdblistKey);
+  const mdblistMovie = mdblistMovies.get(movieId);
+  const imdbRating = getImdbRating(mdblistMovie);
+
+  if (!imdbRating) {
+    throw new ApiError("This movie is not available to share right now.", 404);
+  }
+
+  const movie = await enrichMovie({ id: movieId }, tmdbKey, mdblistMovie, imdbRating);
+  return {
+    ...movie,
+    posterUrl: imageUrl(movie.poster_path, "w500"),
+    backdropUrl: imageUrl(movie.backdrop_path, "w1280"),
+  };
+}
+
 module.exports = async function handler(request, response) {
   response.setHeader("Cache-Control", "no-store");
   response.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -486,4 +507,9 @@ module.exports.__test = {
   candidatePageLimit,
   getImdbRating,
   normalizeInput,
+};
+
+module.exports.shared = {
+  ApiError,
+  getMovieById,
 };

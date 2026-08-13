@@ -3,9 +3,21 @@
   "framework": "create-react-app",
   "buildCommand": "npm run build",
   "outputDirectory": "build",
+  "rewrites": [
+    {
+      "source": "/share/:id",
+      "destination": "/api/share?id=:id"
+    }
+  ],
   "functions": {
     "api/recommend.js": {
       "maxDuration": 60
+    },
+    "api/movie.js": {
+      "maxDuration": 30
+    },
+    "api/share.js": {
+      "maxDuration": 30
     }
   }
 }

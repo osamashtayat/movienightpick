@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { findRandomMovie } from "../services/movieApi";
+import { findMovieById, findRandomMovie } from "../services/movieApi";
 
 export function useMovieDiscovery() {
   const [movie, setMovie] = useState(null);
@@ -33,6 +33,28 @@ export function useMovieDiscovery() {
     }
   }, []);
 
+  const loadSharedMovie = useCallback(async (movieId) => {
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+
+    setMovie(null);
+    setStatus("loading");
+    setError("");
+
+    try {
+      const result = await findMovieById(movieId, { signal: controller.signal });
+      setMovie(result);
+      setStatus("success");
+      return result;
+    } catch (requestError) {
+      if (requestError.name === "AbortError") return null;
+      setError(requestError.message || "This shared movie could not be loaded.");
+      setStatus("error");
+      return null;
+    }
+  }, []);
+
   const cancel = useCallback(() => {
     controllerRef.current?.abort();
     setStatus(movie ? "success" : "idle");
@@ -45,6 +67,7 @@ export function useMovieDiscovery() {
     status,
     error,
     discover,
+    loadSharedMovie,
     cancel,
     selectMovie: setMovie,
   };

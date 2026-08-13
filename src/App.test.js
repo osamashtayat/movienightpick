@@ -3,11 +3,13 @@ import "@testing-library/jest-dom";
 import App from "./App";
 
 beforeEach(() => {
+  window.history.replaceState({}, "", "/");
   window.localStorage.clear();
   window.HTMLElement.prototype.scrollIntoView = jest.fn();
 });
 
 afterEach(() => {
+  delete navigator.share;
   jest.restoreAllMocks();
 });
 
@@ -133,6 +135,38 @@ test("shows an embedded YouTube trailer and linked streaming platforms", async (
   );
   expect(screen.getByText("Netflix")).toBeInTheDocument();
   expect(screen.getByText(/tap a platform to open it/i)).toBeInTheDocument();
+});
+
+test("shares a branded link that opens the exact movie", async () => {
+  const share = jest.fn().mockResolvedValue(undefined);
+  Object.defineProperty(navigator, "share", {
+    configurable: true,
+    value: share,
+  });
+  jest.spyOn(global, "fetch").mockResolvedValueOnce(movieResponse(firstMovie));
+  render(<App />);
+
+  fireEvent.click(screen.getByRole("button", { name: /find my movie/i }));
+  await screen.findByRole("heading", { name: firstMovie.title });
+  fireEvent.click(screen.getByRole("button", { name: /^share$/i }));
+
+  await waitFor(() => expect(share).toHaveBeenCalledWith({
+    title: "First Pick (2020) — MovieNightPick",
+    text: "IMDb 7.8 · See why MovieNightPick chose First Pick.",
+    url: "http://localhost/share/101",
+  }));
+});
+
+test("loads the exact movie from a shared link", async () => {
+  window.history.replaceState({}, "", "/?movie=202");
+  const fetchMock = jest.spyOn(global, "fetch").mockResolvedValueOnce(movieResponse(secondMovie));
+  render(<App />);
+
+  expect(await screen.findByRole("heading", { name: secondMovie.title })).toBeInTheDocument();
+  expect(fetchMock).toHaveBeenCalledWith(
+    "/api/movie?id=202",
+    expect.objectContaining({ signal: expect.any(AbortSignal) })
+  );
 });
 
 test("sends the current movie as an exclusion when spinning again", async () => {

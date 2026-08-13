@@ -24,6 +24,7 @@ function App() {
     status,
     error,
     discover,
+    loadSharedMovie,
     cancel,
     selectMovie,
   } = useMovieDiscovery();
@@ -34,6 +35,10 @@ function App() {
   );
 
   const runDiscovery = async () => {
+    if (new URLSearchParams(window.location.search).has("movie")) {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+
     const excludedIds = filters.avoidSeen
       ? Array.from(new Set([movie?.id, ...history.map((item) => item.id)]))
         .filter(Number.isInteger)
@@ -51,6 +56,9 @@ function App() {
   };
 
   const handleFiltersChange = (nextFilters) => {
+    if (new URLSearchParams(window.location.search).has("movie")) {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
     setFilters(nextFilters);
     selectMovie(null);
   };
@@ -66,20 +74,33 @@ function App() {
   };
 
   const shareMovie = async (selectedMovie) => {
-    const shareText = `${selectedMovie.title} (${selectedMovie.release_date?.slice(0, 4)}) · IMDb ${selectedMovie.imdbRating?.toFixed(1)} — picked by MovieNightPick`;
+    const year = selectedMovie.release_date?.slice(0, 4);
+    const rating = Number.isFinite(selectedMovie.imdbRating)
+      ? `IMDb ${selectedMovie.imdbRating.toFixed(1)}`
+      : "MovieNightPick recommendation";
+    const shareUrl = new URL(`/share/${selectedMovie.id}`, window.location.origin).toString();
+    const shareTitle = `${selectedMovie.title}${year ? ` (${year})` : ""} — MovieNightPick`;
+    const shareText = `${rating} · See why MovieNightPick chose ${selectedMovie.title}.`;
 
     try {
       if (navigator.share) {
-        await navigator.share({ title: selectedMovie.title, text: shareText });
+        await navigator.share({ title: shareTitle, text: shareText, url: shareUrl });
         setToast("Shared!");
       } else {
-        await navigator.clipboard.writeText(shareText);
-        setToast("Movie copied to your clipboard");
+        await navigator.clipboard.writeText(`${shareTitle}\n${shareText}\n${shareUrl}`);
+        setToast("Movie link copied to your clipboard");
       }
     } catch (shareError) {
       if (shareError.name !== "AbortError") setToast("Could not share this movie");
     }
   };
+
+  useEffect(() => {
+    const sharedMovieId = Number(new URLSearchParams(window.location.search).get("movie"));
+    if (Number.isInteger(sharedMovieId) && sharedMovieId > 0) {
+      loadSharedMovie(sharedMovieId);
+    }
+  }, [loadSharedMovie]);
 
   useEffect(() => {
     if (!toast) return undefined;
